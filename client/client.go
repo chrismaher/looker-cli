@@ -3,7 +3,6 @@ package client
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -20,10 +19,10 @@ type Response map[string]interface{}
 
 // endpoint takes a base endpoint, e.g. /running_queries and optional
 // additional paths, and returns a *URL with a complete Looker API URL
-func (c *client) endpoint(base string, ps ...string) *url.URL {
+func (c *client) endpoint(base string, ps ...string) (*url.URL, error) {
 	u, err := url.Parse(c.Path)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	u.Path = path.Join("/api/3.0", base)
 
@@ -31,7 +30,7 @@ func (c *client) endpoint(base string, ps ...string) *url.URL {
 		u.Path = path.Join(u.Path, p)
 	}
 
-	return u
+	return u, nil
 }
 
 // addParams uses a map to add an arbitrary number of URL parameters
@@ -45,7 +44,7 @@ func addParams(u *url.URL, ps map[string][]string) {
 }
 
 // get makes GET HTTP requests to Looker API endpoints
-func (c *client) get(urlstring string) []byte {
+func (c *client) get(urlstring string) ([]byte, error) {
 	access := "token " + c.token
 	req, _ := http.NewRequest("GET", urlstring, nil)
 	req.Header.Add("Authorization", access)
@@ -53,26 +52,29 @@ func (c *client) get(urlstring string) []byte {
 	client := &http.Client{}
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	buf, _ := ioutil.ReadAll(res.Body)
-
-	return buf
+	return ioutil.ReadAll(res.Body)
 }
 
 // request takes a URL string, calls get(), and unmarshalls the JSON Response
-func (c *client) request(ep string) (list []Response) {
-	buf := c.get(ep)
-	if err := json.Unmarshal(buf, &list); err != nil {
-		log.Fatal(err)
+func (c *client) request(ep string) ([]Response, error) {
+	buf, err := c.get(ep)
+	if err != nil {
+		return nil, err
 	}
 
-	return list
+	var list []Response
+	if err := json.Unmarshal(buf, &list); err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }
 
 // getToken authenticates the client and sets client.token to the returned access_token
-func (c *client) getToken() {
+func (c *client) getToken() error {
 	data := url.Values{}
 	data.Set("client_id", c.ID)
 	data.Add("client_secret", c.Secret)
@@ -86,24 +88,35 @@ func (c *client) getToken() {
 
 	res, err := client.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
-	buf, _ := ioutil.ReadAll(res.Body)
+	buf, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
 
 	var ret Response
-
 	if err := json.Unmarshal(buf, &ret); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	c.token = ret["access_token"].(string)
+	return nil
 }
 
 // New is a constructor for creating a client
-func New() *client {
+func New() (*client, error) {
 	c := &client{}
-	c.config = readConfig()
-	c.getToken()
-	return c
+	config, err := readConfig()
+	if err != nil {
+		return nil, err
+	}
+	c.config = config
+
+	if err := c.getToken(); err != nil {
+		return nil, err
+	}
+
+	return c, nil
 }

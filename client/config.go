@@ -3,7 +3,6 @@ package client
 import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"log"
 	"os/user"
 	"path"
 )
@@ -16,22 +15,24 @@ type config struct {
 
 // readConfig reads a config.yaml file stored in a .looker directory
 // located in the user's home directory
-func readConfig() *config {
+func readConfig() (*config, error) {
 	usr, err := user.Current()
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
 	home := usr.HomeDir
 
 	configFile := path.Join(home, ".looker/config.yaml")
 	conf, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
+
 	c := config{}
 	err = yaml.Unmarshal(conf, &c)
 	if err != nil {
-		log.Println(err)
+		return nil, err
 	}
-	return &c
+
+	return &c, nil
 }

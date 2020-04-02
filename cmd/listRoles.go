@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/chrismaher/looker-cli/client"
 	"github.com/spf13/cobra"
@@ -13,8 +14,15 @@ var listRolesCmd = &cobra.Command{
 	Short: "A list of Looker roles",
 	Long:  `TBD`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := client.New()
-		roles := client.GetRoles()
+		client, err := client.New()
+		if err != nil {
+			log.Panic(err)
+		}
+
+		roles, err := client.GetRoles()
+		if err != nil {
+			log.Panic(err)
+		}
 
 		for _, r := range roles {
 			fmt.Println(r)
