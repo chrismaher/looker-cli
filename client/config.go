@@ -13,6 +13,16 @@ type config struct {
 	Secret string `yaml:"client_secret"`
 }
 
+// parseConfig creates a config instance from the text in a config.yaml file
+func parseConfig(conf []byte) (*config, error) {
+	c := config{}
+	if err := yaml.Unmarshal(conf, &c); err != nil {
+		return nil, err
+	}
+
+	return &c, nil
+}
+
 // readConfig reads a config.yaml file stored in a .looker directory
 // located in the user's home directory
 func readConfig() (*config, error) {
@@ -28,11 +38,5 @@ func readConfig() (*config, error) {
 		return nil, err
 	}
 
-	c := config{}
-	err = yaml.Unmarshal(conf, &c)
-	if err != nil {
-		return nil, err
-	}
-
-	return &c, nil
+	return parseConfig(conf)
 }

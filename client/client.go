@@ -14,12 +14,17 @@ type client struct {
 	token string
 }
 
+type endpoint struct {
+	route  string
+	params map[string][]string
+}
+
 // Response type will most often be used as []Response
 type Response map[string]interface{}
 
-// endpoint takes a base endpoint, e.g. /running_queries and optional
+// mkEndpoint takes a base endpoint, e.g. /running_queries and optional
 // additional paths, and returns a *URL with a complete Looker API URL
-func (c *client) endpoint(base string, ps ...string) (*url.URL, error) {
+func (c *client) mkEndpoint(base string, ps ...string) (*url.URL, error) {
 	u, err := url.Parse(c.Path)
 	if err != nil {
 		return nil, err
@@ -59,8 +64,17 @@ func (c *client) get(urlstring string) ([]byte, error) {
 }
 
 // request takes a URL string, calls get(), and unmarshalls the JSON Response
-func (c *client) request(ep string) ([]Response, error) {
-	buf, err := c.get(ep)
+func (c *client) request(ep endpoint, ps ...string) ([]Response, error) {
+	ex, err := c.mkEndpoint(ep.route, ps...)
+	if err != nil {
+		return nil, err
+	}
+
+	if ep.params != nil {
+		addParams(ex, ep.params)
+	}
+
+	buf, err := c.get(ex.String())
 	if err != nil {
 		return nil, err
 	}
